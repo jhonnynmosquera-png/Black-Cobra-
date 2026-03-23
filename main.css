@@ -1,223 +1,834 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Blackjack AI Pro - Detector de Cartas</title>
+:root {
+    --primary: #3b82f6;
+    --primary-dark: #2563eb;
+    --secondary: #8b5cf6;
+    --accent: #10b981;
+    --danger: #ef4444;
+    --warning: #f59e0b;
+    --dark: #0f172a;
+    --darker: #020617;
+    --light: #f8fafc;
+    --gray: #64748b;
+    --gray-light: #94a3b8;
+    --card-bg: rgba(30, 41, 59, 0.9);
+    --border: rgba(148, 163, 184, 0.2);
+    --shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    --shadow-lg: 0 35px 60px -15px rgba(0, 0, 0, 0.6);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html, body {
+    height: 100%;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--darker);
+    color: var(--light);
+    overflow: hidden;
+}
+
+#loadingScreen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, var(--darker) 0%, var(--dark) 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    transition: opacity 0.5s ease, visibility 0.5s;
+}
+
+#loadingScreen.hidden {
+    opacity: 0;
+    visibility: hidden;
+}
+
+.loading-content {
+    text-align: center;
+    padding: 2rem;
+}
+
+.spinner {
+    width: 80px;
+    height: 80px;
+    border: 4px solid rgba(59, 130, 246, 0.2);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 2rem;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.loading-content h2 {
+    font-size: 1.8rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.loading-content p {
+    color: var(--gray-light);
+    margin-bottom: 2rem;
+}
+
+.loading-progress {
+    width: 300px;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 2px;
+    overflow: hidden;
+    margin: 0 auto;
+}
+
+.progress-bar {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--primary), var(--secondary));
+    animation: loading 2s ease-in-out infinite;
+}
+
+@keyframes loading {
+    0% { width: 0%; margin-left: 0%; }
+    50% { width: 50%; margin-left: 25%; }
+    100% { width: 0%; margin-left: 100%; }
+}
+
+.app-header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 70px;
+    background: rgba(15, 23, 42, 0.95);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 2rem;
+    z-index: 1000;
+}
+
+.logo {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 1.5rem;
+    font-weight: 900;
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.logo i {
+    font-size: 1.8rem;
+    -webkit-text-fill-color: var(--primary);
+}
+
+.header-stats {
+    display: flex;
+    gap: 2rem;
+}
+
+.stat {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+    color: var(--gray-light);
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.stat i {
+    color: var(--primary);
+}
+
+.settings-btn {
+    width: 45px;
+    height: 45px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: rgba(59, 130, 246, 0.1);
+    color: var(--primary);
+    font-size: 1.2rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.settings-btn:hover {
+    background: var(--primary);
+    color: white;
+    transform: rotate(30deg);
+}
+
+.main-container {
+    display: flex;
+    height: 100vh;
+    padding-top: 70px;
+}
+
+.video-container {
+    flex: 1;
+    position: relative;
+    background: #000;
+    overflow: hidden;
+}
+
+#video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+#overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
+.detection-zone {
+    position: absolute;
+    border: 2px dashed rgba(59, 130, 246, 0.5);
+    border-radius: 20px;
+    pointer-events: none;
+}
+
+.player-zone {
+    bottom: 20%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 60%;
+    height: 30%;
+}
+
+.zone-label {
+    position: absolute;
+    top: -30px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--primary);
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.control-panel {
+    width: 400px;
+    background: var(--card-bg);
+    border-left: 1px solid var(--border);
+    overflow-y: auto;
+    padding: 1.5rem;
+    backdrop-filter: blur(20px);
+}
+
+.panel-section {
+    margin-bottom: 1.5rem;
+    padding: 1.5rem;
+    background: rgba(15, 23, 42, 0.6);
+    border-radius: 16px;
+    border: 1px solid var(--border);
+}
+
+.panel-section h3 {
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--gray-light);
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.dealer-cards {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 0.5rem;
+}
+
+.card-btn {
+    aspect-ratio: 2/3;
+    border: 2px solid var(--border);
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.25rem;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.card-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, transparent 0%, rgba(255,255,255,0.1) 100%);
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.card-btn:hover::before {
+    opacity: 1;
+}
+
+.card-btn:hover {
+    transform: translateY(-2px);
+    border-color: var(--primary);
+    box-shadow: 0 10px 30px rgba(59, 130, 246, 0.3);
+}
+
+.card-btn.selected {
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    border-color: transparent;
+    transform: scale(1.05);
+    box-shadow: 0 10px 30px rgba(59, 130, 246, 0.5);
+}
+
+.card-rank {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: white;
+}
+
+.card-suit {
+    font-size: 1rem;
+}
+
+.card-btn.selected .card-suit {
+    color: rgba(255, 255, 255, 0.9) !important;
+}
+
+.card-btn[data-value="2"] .card-suit,
+.card-btn[data-value="4"] .card-suit,
+.card-btn[data-value="6"] .card-suit,
+.card-btn[data-value="10"] .card-suit {
+    color: #ef4444;
+}
+
+.card-btn[data-value="3"] .card-suit,
+.card-btn[data-value="5"] .card-suit,
+.card-btn[data-value="9"] .card-suit {
+    color: #3b82f6;
+}
+
+.card-btn[data-value="7"] .card-suit,
+.card-btn[data-value="8"] .card-suit {
+    color: #10b981;
+}
+
+.detected-cards {
+    min-height: 80px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    align-items: center;
+}
+
+.detected-card {
+    width: 50px;
+    height: 70px;
+    background: linear-gradient(135deg, #fff 0%, #f1f5f9 100%);
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    animation: dealCard 0.5s ease;
+    position: relative;
+}
+
+@keyframes dealCard {
+    from {
+        opacity: 0;
+        transform: translateY(-20px) rotateY(90deg);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) rotateY(0);
+    }
+}
+
+.detected-card .rank {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #1e293b;
+}
+
+.detected-card .suit {
+    font-size: 1.2rem;
+}
+
+.detected-card.hearts .suit,
+.detected-card.diamonds .suit {
+    color: #dc2626;
+}
+
+.detected-card.spades .suit,
+.detected-card.clubs .suit {
+    color: #1e293b;
+}
+
+.empty-state {
+    color: var(--gray);
+    font-size: 0.9rem;
+    text-align: center;
+    width: 100%;
+}
+
+.analysis-section {
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%);
+}
+
+.analysis-content {
+    text-align: center;
+}
+
+.hand-value {
+    margin-bottom: 1rem;
+}
+
+.hand-value .value {
+    display: block;
+    font-size: 4rem;
+    font-weight: 900;
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    line-height: 1;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.hand-value .label {
+    font-size: 0.9rem;
+    color: var(--gray-light);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+}
+
+.hand-type {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--light);
+    padding: 0.75rem;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 10px;
+}
+
+.hand-type.soft {
+    color: var(--accent);
+}
+
+.hand-type.pair {
+    color: var(--secondary);
+}
+
+.hand-type.bust {
+    color: var(--danger);
+}
+
+.hand-type.blackjack {
+    color: #fbbf24;
+    text-shadow: 0 0 20px rgba(251, 191, 36, 0.5);
+}
+
+.recommendation-section {
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(59, 130, 246, 0.1) 100%);
+}
+
+.recommendation {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1.5rem;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 16px;
+    margin-bottom: 1rem;
+    border: 2px solid transparent;
+    transition: all 0.3s ease;
+}
+
+.recommendation.hit {
+    border-color: var(--accent);
+    background: rgba(16, 185, 129, 0.1);
+}
+
+.recommendation.stand {
+    border-color: var(--primary);
+    background: rgba(59, 130, 246, 0.1);
+}
+
+.recommendation.double {
+    border-color: var(--warning);
+    background: rgba(245, 158, 11, 0.1);
+}
+
+.recommendation.split {
+    border-color: var(--secondary);
+    background: rgba(139, 92, 246, 0.1);
+}
+
+.recommendation.surrender {
+    border-color: var(--danger);
+    background: rgba(239, 68, 68, 0.1);
+}
+
+.action-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.recommendation.hit .action-icon {
+    background: var(--accent);
+    color: white;
+}
+
+.recommendation.stand .action-icon {
+    background: var(--primary);
+    color: white;
+}
+
+.recommendation.double .action-icon {
+    background: var(--warning);
+    color: white;
+}
+
+.recommendation.split .action-icon {
+    background: var(--secondary);
+    color: white;
+}
+
+.recommendation.surrender .action-icon {
+    background: var(--danger);
+    color: white;
+}
+
+.action-text {
+    flex: 1;
+    font-size: 1.5rem;
+    font-weight: 700;
+}
+
+.strategy-details {
+    font-size: 0.85rem;
+    color: var(--gray-light);
+    line-height: 1.6;
+    padding: 0 0.5rem;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+}
+
+.stat-item {
+    text-align: center;
+    padding: 1rem;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 12px;
+    border: 1px solid var(--border);
+}
+
+.stat-value {
+    display: block;
+    font-size: 2rem;
+    font-weight: 900;
+    color: var(--primary);
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.stat-label {
+    font-size: 0.8rem;
+    color: var(--gray-light);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(10px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+}
+
+.modal.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.modal-content {
+    width: 90%;
+    max-width: 500px;
+    background: var(--card-bg);
+    border-radius: 24px;
+    border: 1px solid var(--border);
+    overflow: hidden;
+    transform: scale(0.9);
+    transition: transform 0.3s ease;
+}
+
+.modal.active .modal-content {
+    transform: scale(1);
+}
+
+.modal-header {
+    padding: 1.5rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.modal-header h2 {
+    font-size: 1.3rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.close-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--light);
+    font-size: 1.5rem;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.close-btn:hover {
+    background: var(--danger);
+    transform: rotate(90deg);
+}
+
+.modal-body {
+    padding: 1.5rem;
+}
+
+.setting-group {
+    margin-bottom: 1.5rem;
+}
+
+.setting-group label {
+    display: block;
+    font-size: 0.9rem;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+    color: var(--gray-light);
+}
+
+.setting-group select,
+.setting-group input[type="range"] {
+    width: 100%;
+    padding: 0.75rem;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--light);
+    font-size: 1rem;
+}
+
+.setting-group select:focus {
+    outline: none;
+    border-color: var(--primary);
+}
+
+.range-value {
+    display: inline-block;
+    margin-left: 1rem;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--primary);
+}
+
+.checkbox-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.checkbox {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 8px;
+    transition: background 0.3s;
+}
+
+.checkbox:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.checkbox input {
+    width: 20px;
+    height: 20px;
+    accent-color: var(--primary);
+}
+
+.btn-primary {
+    width: 100%;
+    padding: 1rem;
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    border: none;
+    border-radius: 12px;
+    color: white;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 30px rgba(59, 130, 246, 0.4);
+}
+
+#toastContainer {
+    position: fixed;
+    top: 90px;
+    right: 20px;
+    z-index: 3000;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.toast {
+    padding: 1rem 1.5rem;
+    background: var(--card-bg);
+    border-left: 4px solid var(--primary);
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+    animation: slideIn 0.3s ease;
+    backdrop-filter: blur(20px);
+    max-width: 350px;
+}
+
+.toast.success {
+    border-left-color: var(--accent);
+}
+
+.toast.error {
+    border-left-color: var(--danger);
+}
+
+.toast.warning {
+    border-left-color: var(--warning);
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateX(100%);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@media (max-width: 1024px) {
+    .main-container {
+        flex-direction: column;
+    }
     
-    <meta name="description" content="Detector profesional de cartas de Blackjack con IA y estrategia básica optimizada">
-    <meta name="theme-color" content="#0f172a">
+    .control-panel {
+        width: 100%;
+        height: 40vh;
+        border-left: none;
+        border-top: 1px solid var(--border);
+    }
     
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎰</text></svg>">
+    .video-container {
+        height: 60vh;
+    }
+}
+
+@media (max-width: 640px) {
+    .app-header {
+        padding: 0 1rem;
+    }
     
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    .logo span {
+        display: none;
+    }
     
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    .header-stats {
+        gap: 1rem;
+    }
     
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.21/lodash.min.js"></script>
-    <script src="https://cdn.roboflow.com/0.2.26/roboflow.js"></script>
+    .dealer-cards {
+        grid-template-columns: repeat(5, 1fr);
+    }
     
-    <link rel="stylesheet" href="./main.css">
-</head>
-<body class="loading">
-    <div id="loadingScreen">
-        <div class="loading-content">
-            <div class="spinner"></div>
-            <h2>Iniciando Blackjack AI Pro</h2>
-            <p>Cargando modelo de inteligencia artificial...</p>
-            <div class="loading-progress">
-                <div class="progress-bar"></div>
-            </div>
-        </div>
-    </div>
+    .card-btn {
+        font-size: 0.8rem;
+    }
+}
 
-    <header class="app-header">
-        <div class="logo">
-            <i class="fas fa-brain"></i>
-            <span>Blackjack AI Pro</span>
-        </div>
-        <div class="header-stats">
-            <div class="stat">
-                <i class="fas fa-video"></i>
-                <span id="fps">0</span> FPS
-            </div>
-            <div class="stat">
-                <i class="fas fa-bullseye"></i>
-                <span id="confidence">0%</span>
-            </div>
-        </div>
-        <button class="settings-btn" id="toggleSettings">
-            <i class="fas fa-cog"></i>
-        </button>
-    </header>
+::-webkit-scrollbar {
+    width: 8px;
+}
 
-    <main class="main-container">
-        <div class="video-container">
-            <video id="video" autoplay muted playsinline></video>
-            <canvas id="overlay"></canvas>
-            <div class="detection-zone player-zone">
-                <span class="zone-label">TU MANO</span>
-            </div>
-        </div>
+::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.2);
+}
 
-        <aside class="control-panel" id="controlPanel">
-            <div class="panel-section">
-                <h3><i class="fas fa-user-tie"></i> Carta del Crupier</h3>
-                <div class="dealer-cards">
-                    <button class="card-btn selected" data-value="A">
-                        <span class="card-rank">A</span>
-                        <span class="card-suit">♠</span>
-                    </button>
-                    <button class="card-btn" data-value="2">
-                        <span class="card-rank">2</span>
-                        <span class="card-suit">♥</span>
-                    </button>
-                    <button class="card-btn" data-value="3">
-                        <span class="card-rank">3</span>
-                        <span class="card-suit">♦</span>
-                    </button>
-                    <button class="card-btn" data-value="4">
-                        <span class="card-rank">4</span>
-                        <span class="card-suit">♣</span>
-                    </button>
-                    <button class="card-btn" data-value="5">
-                        <span class="card-rank">5</span>
-                        <span class="card-suit">♠</span>
-                    </button>
-                    <button class="card-btn" data-value="6">
-                        <span class="card-rank">6</span>
-                        <span class="card-suit">♥</span>
-                    </button>
-                    <button class="card-btn" data-value="7">
-                        <span class="card-rank">7</span>
-                        <span class="card-suit">♦</span>
-                    </button>
-                    <button class="card-btn" data-value="8">
-                        <span class="card-rank">8</span>
-                        <span class="card-suit">♣</span>
-                    </button>
-                    <button class="card-btn" data-value="9">
-                        <span class="card-rank">9</span>
-                        <span class="card-suit">♠</span>
-                    </button>
-                    <button class="card-btn" data-value="10">
-                        <span class="card-rank">10</span>
-                        <span class="card-suit">♥</span>
-                    </button>
-                </div>
-            </div>
+::-webkit-scrollbar-thumb {
+    background: var(--primary);
+    border-radius: 4px;
+}
 
-            <div class="panel-section">
-                <h3><i class="fas fa-cards"></i> Cartas Detectadas</h3>
-                <div id="detectedCards" class="detected-cards">
-                    <p class="empty-state">Apunta la cámara a las cartas</p>
-                </div>
-            </div>
-
-            <div class="panel-section analysis-section">
-                <h3><i class="fas fa-chart-line"></i> Análisis</h3>
-                <div class="analysis-content" id="analysisContent">
-                    <div class="hand-value" id="handValue">
-                        <span class="value">--</span>
-                        <span class="label">Valor de mano</span>
-                    </div>
-                    <div class="hand-type" id="handType">Esperando cartas...</div>
-                </div>
-            </div>
-
-            <div class="panel-section recommendation-section" id="recommendationSection">
-                <h3><i class="fas fa-lightbulb"></i> Estrategia Recomendada</h3>
-                <div class="recommendation" id="recommendation">
-                    <div class="action-icon">
-                        <i class="fas fa-hand-paper"></i>
-                    </div>
-                    <div class="action-text">Esperando...</div>
-                </div>
-                <div class="strategy-details" id="strategyDetails"></div>
-            </div>
-
-            <div class="panel-section stats-section">
-                <h3><i class="fas fa-trophy"></i> Estadísticas</h3>
-                <div class="stats-grid">
-                    <div class="stat-item">
-                        <span class="stat-value" id="totalHands">0</span>
-                        <span class="stat-label">Manos</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-value" id="blackjacks">0</span>
-                        <span class="stat-label">Blackjacks</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-value" id="busts">0</span>
-                        <span class="stat-label">Busts</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-value" id="pairs">0</span>
-                        <span class="stat-label">Pares</span>
-                    </div>
-                </div>
-            </div>
-        </aside>
-    </main>
-
-    <div class="modal" id="settingsModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2><i class="fas fa-cog"></i> Configuración</h2>
-                <button class="close-btn" id="closeSettings">&times;</button>
-            </div>
-            <div class="modal-body">
-                <div class="setting-group">
-                    <label>Modo de Cámara</label>
-                    <select id="cameraMode">
-                        <option value="environment">Trasera (Recomendado)</option>
-                        <option value="user">Frontal</option>
-                    </select>
-                </div>
-                <div class="setting-group">
-                    <label>Umbral de Confianza</label>
-                    <input type="range" id="confidenceThreshold" min="0.1" max="0.9" step="0.1" value="0.5">
-                    <span class="range-value" id="confidenceValue">50%</span>
-                </div>
-                <div class="setting-group">
-                    <label>Reglas del Juego</label>
-                    <div class="checkbox-group">
-                        <label class="checkbox">
-                            <input type="checkbox" id="soft17" checked>
-                            <span>Crupier pide en Soft 17</span>
-                        </label>
-                        <label class="checkbox">
-                            <input type="checkbox" id="doubleAfterSplit" checked>
-                            <span>Doble después de dividir</span>
-                        </label>
-                        <label class="checkbox">
-                            <input type="checkbox" id="surrender" checked>
-                            <span>Permitir rendición</span>
-                        </label>
-                    </div>
-                </div>
-                <div class="setting-group">
-                    <label>Número de Mazos</label>
-                    <select id="deckCount">
-                        <option value="1">1 Mazo</option>
-                        <option value="2">2 Mazos</option>
-                        <option value="4">4 Mazos</option>
-                        <option value="6" selected>6 Mazos</option>
-                        <option value="8">8 Mazos</option>
-                    </select>
-                </div>
-                <button class="btn-primary" id="saveSettings">
-                    <i class="fas fa-save"></i> Guardar Cambios
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <div id="toastContainer"></div>
-
-    <script src="./main.js"></script>
-</body>
-</html>
+::-webkit-scrollbar-thumb:hover {
+    background: var(--primary-dark);
+}
