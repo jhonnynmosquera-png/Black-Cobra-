@@ -1,1229 +1,350 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Blackjack Counter Pro - OCR en Tiempo Real</title>
-    <script src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js'></script>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            -webkit-tap-highlight-color: transparent;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #16213e 100%);
-            color: #fff;
-            min-height: 100vh;
-            overflow-x: hidden;
-        }
-
-        .container {
-            max-width: 100%;
-            margin: 0 auto;
-            padding: 10px;
-        }
-
-        header {
-            text-align: center;
-            padding: 15px 0;
-            border-bottom: 2px solid #ffd700;
-            margin-bottom: 15px;
-            background: rgba(0,0,0,0.3);
-        }
-
-        h1 {
-            font-size: 1.3rem;
-            color: #ffd700;
-            text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
-        }
-
-        .subtitle {
-            font-size: 0.7rem;
-            color: #aaa;
-            margin-top: 5px;
-        }
-
-        /* Display Principal */
-        .main-display {
-            background: rgba(0, 0, 0, 0.7);
-            border: 2px solid #ffd700;
-            border-radius: 15px;
-            padding: 15px;
-            margin-bottom: 15px;
-            text-align: center;
-            box-shadow: 0 0 20px rgba(255, 215, 0, 0.2);
-        }
-
-        .count-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            margin-bottom: 15px;
-        }
-
-        .count-box {
-            background: rgba(255, 255, 255, 0.1);
-            padding: 12px;
-            border-radius: 10px;
-            border: 1px solid rgba(255,215,0,0.3);
-        }
-
-        .count-label {
-            font-size: 0.7rem;
-            color: #aaa;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        .count-value {
-            font-size: 2rem;
-            font-weight: bold;
-            margin-top: 5px;
-        }
-
-        .running-count { color: #00ff88; }
-        .true-count { color: #ff6b6b; }
-        .true-count.positive { text-shadow: 0 0 10px rgba(255, 107, 107, 0.8); }
-        .decks-remaining { color: #4ecdc4; }
-        .cards-played { color: #ffe66d; }
-
-        /* Sección de Cámara */
-        .camera-section {
-            background: rgba(0, 0, 0, 0.5);
-            border-radius: 15px;
-            padding: 15px;
-            margin-bottom: 15px;
-            border: 2px solid #444;
-        }
-
-        .section-title {
-            font-size: 0.9rem;
-            color: #ffd700;
-            margin-bottom: 10px;
-            text-align: center;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-        }
-
-        .status-badge {
-            display: inline-block;
-            padding: 4px 8px;
-            border-radius: 12px;
-            font-size: 0.65rem;
-            font-weight: bold;
-        }
-
-        .status-active {
-            background: #00ff88;
-            color: #000;
-            animation: pulse 2s infinite;
-        }
-
-        .status-inactive {
-            background: #ff6b6b;
-            color: #fff;
-        }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.6; }
-        }
-
-        .camera-container {
-            position: relative;
-            width: 100%;
-            aspect-ratio: 4/3;
-            background: #000;
-            border-radius: 10px;
-            overflow: hidden;
-            margin-bottom: 10px;
-            border: 3px solid #333;
-        }
-
-        .camera-container.active {
-            border-color: #00ff88;
-            box-shadow: 0 0 15px rgba(0, 255, 136, 0.3);
-        }
-
-        #video {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-
-        #canvas, #processingCanvas {
-            display: none;
-        }
-
-        /* Zona de detección */
-        .detection-zone {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 140px;
-            height: 200px;
-            border: 3px dashed #ffd700;
-            border-radius: 10px;
-            background: rgba(255, 215, 0, 0.1);
-            pointer-events: none;
-            z-index: 10;
-        }
-
-        .detection-zone.scanning {
-            animation: scan 2s infinite;
-            border-color: #00ff88;
-            background: rgba(0, 255, 136, 0.1);
-        }
-
-        @keyframes scan {
-            0%, 100% { opacity: 0.3; }
-            50% { opacity: 0.8; }
-        }
-
-        .zone-label {
-            position: absolute;
-            bottom: -25px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(0,0,0,0.8);
-            padding: 3px 10px;
-            border-radius: 10px;
-            font-size: 0.7rem;
-            color: #ffd700;
-            white-space: nowrap;
-        }
-
-        .camera-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0,0,0,0.4);
-            pointer-events: none;
-        }
-
-        /* Última carta detectada */
-        .last-detection {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            background: rgba(0,0,0,0.8);
-            border: 2px solid #ffd700;
-            border-radius: 8px;
-            padding: 8px;
-            min-width: 60px;
-            text-align: center;
-            z-index: 20;
-        }
-
-        .last-detection-label {
-            font-size: 0.6rem;
-            color: #aaa;
-        }
-
-        .last-detection-value {
-            font-size: 1.5rem;
-            font-weight: bold;
-            color: #ffd700;
-        }
-
-        .confidence-bar {
-            height: 4px;
-            background: rgba(255,255,255,0.2);
-            border-radius: 2px;
-            margin-top: 5px;
-            overflow: hidden;
-        }
-
-        .confidence-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #ff6b6b, #ffe66d, #00ff88);
-            transition: width 0.3s;
-        }
-
-        /* Controles de cámara */
-        .camera-controls {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            margin-bottom: 10px;
-        }
-
-        .control-btn {
-            padding: 12px;
-            border: none;
-            border-radius: 8px;
-            font-size: 0.85rem;
-            font-weight: bold;
-            cursor: pointer;
-            transition: all 0.3s;
-            text-transform: uppercase;
-        }
-
-        .camera-btn {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-        }
-
-        .scan-btn {
-            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
-            color: #000;
-        }
-
-        .scan-btn:disabled {
-            background: #444;
-            color: #888;
-            cursor: not-allowed;
-        }
-
-        .control-btn:active {
-            transform: scale(0.95);
-        }
-
-        /* Log de detecciones */
-        .detection-log {
-            background: rgba(0,0,0,0.3);
-            border-radius: 8px;
-            padding: 10px;
-            max-height: 120px;
-            overflow-y: auto;
-            font-family: monospace;
-            font-size: 0.75rem;
-        }
-
-        .log-entry {
-            padding: 3px 0;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-            display: flex;
-            justify-content: space-between;
-        }
-
-        .log-entry.success {
-            color: #00ff88;
-        }
-
-        .log-entry.error {
-            color: #ff6b6b;
-        }
-
-        .log-entry.pending {
-            color: #ffe66d;
-        }
-
-        /* Botones manuales (fallback) */
-        .manual-section {
-            background: rgba(0, 0, 0, 0.4);
-            border-radius: 15px;
-            padding: 15px;
-            margin-bottom: 15px;
-        }
-
-        .manual-title {
-            font-size: 0.8rem;
-            color: #aaa;
-            margin-bottom: 10px;
-            text-align: center;
-        }
-
-        .quick-buttons {
-            display: grid;
-            grid-template-columns: repeat(7, 1fr);
-            gap: 5px;
-        }
-
-        .card-btn {
-            padding: 10px 2px;
-            border: none;
-            border-radius: 6px;
-            font-size: 0.9rem;
-            font-weight: bold;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .card-btn:active {
-            transform: scale(0.9);
-        }
-
-        .card-low { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: #fff; }
-        .card-neutral { background: linear-gradient(135deg, #f1c40f 0%, #f39c12 100%); color: #333; }
-        .card-high { background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%); color: #fff; }
-
-        /* Probabilidades */
-        .probabilities {
-            background: rgba(0, 0, 0, 0.4);
-            border-radius: 10px;
-            padding: 15px;
-            margin-bottom: 15px;
-        }
-
-        .prob-title {
-            font-size: 0.8rem;
-            color: #ffd700;
-            margin-bottom: 10px;
-            text-transform: uppercase;
-        }
-
-        .prob-bars {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-
-        .prob-item {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .prob-label {
-            width: 70px;
-            font-size: 0.75rem;
-        }
-
-        .prob-bar-container {
-            flex: 1;
-            height: 20px;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 10px;
-            overflow: hidden;
-        }
-
-        .prob-bar {
-            height: 100%;
-            border-radius: 10px;
-            transition: width 0.3s ease;
-            display: flex;
-            align-items: center;
-            justify-content: flex-end;
-            padding-right: 5px;
-            font-size: 0.7rem;
-            font-weight: bold;
-        }
-
-        .prob-high { background: linear-gradient(90deg, #ff6b6b, #ee5a6f); }
-        .prob-low { background: linear-gradient(90deg, #4ecdc4, #44a3aa); }
-        .prob-neutral { background: linear-gradient(90deg, #ffe66d, #f4d03f); color: #333; }
-
-        .suggestion {
-            margin-top: 10px;
-            padding: 10px;
-            border-radius: 8px;
-            font-weight: bold;
-            text-transform: uppercase;
-            font-size: 0.85rem;
-            text-align: center;
-        }
-
-        .suggestion.bet-high {
-            background: rgba(255, 107, 107, 0.3);
-            border: 1px solid #ff6b6b;
-            color: #ff6b6b;
-        }
-
-        .suggestion.bet-low {
-            background: rgba(78, 205, 196, 0.3);
-            border: 1px solid #4ecdc4;
-            color: #4ecdc4;
-        }
-
-        .suggestion.wait {
-            background: rgba(255, 230, 109, 0.3);
-            border: 1px solid #ffe66d;
-            color: #ffe66d;
-        }
-
-        /* Estadísticas */
-        .stats-section {
-            background: rgba(0, 0, 0, 0.4);
-            border-radius: 15px;
-            padding: 15px;
-            margin-bottom: 15px;
-        }
-
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 8px;
-            text-align: center;
-        }
-
-        .stat-item {
-            background: rgba(255, 255, 255, 0.05);
-            padding: 8px;
-            border-radius: 6px;
-        }
-
-        .stat-value {
-            font-size: 1.1rem;
-            font-weight: bold;
-            color: #ffd700;
-        }
-
-        .stat-label {
-            font-size: 0.6rem;
-            color: #aaa;
-            text-transform: uppercase;
-        }
-
-        /* Controles generales */
-        .general-controls {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-        }
-
-        .general-btn {
-            padding: 12px;
-            border: 2px solid;
-            border-radius: 8px;
-            background: transparent;
-            color: #fff;
-            font-size: 0.8rem;
-            font-weight: bold;
-            cursor: pointer;
-        }
-
-        .undo-btn { border-color: #ffe66d; color: #ffe66d; }
-        .reset-btn { border-color: #ff6b6b; color: #ff6b6b; }
-
-        /* Loading overlay */
-        .loading-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0,0,0,0.9);
-            display: none;
-            justify-content: center;
-            align-items: center;
-            flex-direction: column;
-            z-index: 1000;
-        }
-
-        .loading-overlay.active {
-            display: flex;
-        }
-
-        .spinner {
-            width: 50px;
-            height: 50px;
-            border: 3px solid rgba(255,215,0,0.3);
-            border-top-color: #ffd700;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        .loading-text {
-            margin-top: 15px;
-            color: #ffd700;
-            font-size: 0.9rem;
-        }
-
-        /* Notificación */
-        .notification {
-            position: fixed;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%) translateY(-100px);
-            background: rgba(0, 0, 0, 0.95);
-            border: 2px solid #ffd700;
-            border-radius: 10px;
-            padding: 12px 20px;
-            z-index: 2000;
-            transition: transform 0.3s ease;
-            text-align: center;
-            max-width: 90%;
-        }
-
-        .notification.show {
-            transform: translateX(-50%) translateY(0);
-        }
-
-        .notification.error {
-            border-color: #ff6b6b;
-        }
-
-        .notification.success {
-            border-color: #00ff88;
-        }
-    </style>
-<base target="_blank">
-</head>
-<body>
-    <div class="loading-overlay" id="loadingOverlay">
-        <div class="spinner"></div>
-        <div class="loading-text">Inicializando OCR...</div>
-    </div>
-
-    <div class="container">
-        <header>
-            <h1>♠️ BLACKJACK COUNTER PRO ♥️</h1>
-            <div class="subtitle">OCR en Tiempo Real | 8 Mazos | Modo Entrenamiento</div>
-        </header>
-
-        <!-- Display Principal -->
-        <div class="main-display">
-            <div class="count-grid">
-                <div class="count-box">
-                    <div class="count-label">Running Count</div>
-                    <div class="count-value running-count" id="runningCount">0</div>
-                </div>
-                <div class="count-box">
-                    <div class="count-label">True Count</div>
-                    <div class="count-value true-count" id="trueCount">0.0</div>
-                </div>
-                <div class="count-box">
-                    <div class="count-label">Mazos Rest.</div>
-                    <div class="count-value decks-remaining" id="decksRemaining">8.0</div>
-                </div>
-                <div class="count-box">
-                    <div class="count-label">Cartas</div>
-                    <div class="count-value cards-played" id="cardsPlayed">0/416</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Sección de Cámara OCR -->
-        <div class="camera-section">
-            <div class="section-title">
-                📷 CÁMARA OCR 
-                <span class="status-badge status-inactive" id="ocrStatus">INACTIVO</span>
-            </div>
-
-            <div class="camera-container" id="cameraContainer">
-                <video id="video" autoplay playsinline muted></video>
-                <canvas id="canvas"></canvas>
-                <canvas id="processingCanvas"></canvas>
-
-                <div class="camera-overlay"></div>
-                <div class="detection-zone" id="detectionZone">
-                    <div class="zone-label">Centra la carta aquí</div>
-                </div>
-
-                <div class="last-detection">
-                    <div class="last-detection-label">ÚLTIMO</div>
-                    <div class="last-detection-value" id="lastDetection">-</div>
-                    <div class="confidence-bar">
-                        <div class="confidence-fill" id="confidenceFill" style="width: 0%"></div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="camera-controls">
-                <button class="control-btn camera-btn" id="cameraBtn" onclick="toggleCamera()">
-                    Activar Cámara
-                </button>
-                <button class="control-btn scan-btn" id="scanBtn" onclick="toggleScanning()" disabled>
-                    Iniciar OCR
-                </button>
-            </div>
-
-            <div class="detection-log" id="detectionLog">
-                <div class="log-entry">Esperando inicio de cámara...</div>
-            </div>
-        </div>
-
-        <!-- Probabilidades -->
-        <div class="probabilities">
-            <div class="prob-title">📊 Probabilidades Próxima Carta</div>
-            <div class="prob-bars">
-                <div class="prob-item">
-                    <div class="prob-label">Alta (10-A)</div>
-                    <div class="prob-bar-container">
-                        <div class="prob-bar prob-high" id="probHigh" style="width: 38%">38%</div>
-                    </div>
-                </div>
-                <div class="prob-item">
-                    <div class="prob-label">Baja (2-6)</div>
-                    <div class="prob-bar-container">
-                        <div class="prob-bar prob-low" id="probLow" style="width: 38%">38%</div>
-                    </div>
-                </div>
-                <div class="prob-item">
-                    <div class="prob-label">Neutra (7-9)</div>
-                    <div class="prob-bar-container">
-                        <div class="prob-bar prob-neutral" id="probNeutral" style="width: 24%">24%</div>
-                    </div>
-                </div>
-            </div>
-            <div class="suggestion wait" id="suggestion">➖ ESPERAR - Sin ventaja</div>
-        </div>
-
-        <!-- Entrada Manual (Fallback) -->
-        <div class="manual-section">
-            <div class="manual-title">🎮 Entrada Manual (si OCR falla)</div>
-            <div class="quick-buttons">
-                <button class="card-btn card-low" onclick="addCard('2')">2</button>
-                <button class="card-btn card-low" onclick="addCard('3')">3</button>
-                <button class="card-btn card-low" onclick="addCard('4')">4</button>
-                <button class="card-btn card-low" onclick="addCard('5')">5</button>
-                <button class="card-btn card-low" onclick="addCard('6')">6</button>
-                <button class="card-btn card-neutral" onclick="addCard('7')">7</button>
-                <button class="card-btn card-neutral" onclick="addCard('8')">8</button>
-                <button class="card-btn card-neutral" onclick="addCard('9')">9</button>
-                <button class="card-btn card-high" onclick="addCard('10')">10</button>
-                <button class="card-btn card-high" onclick="addCard('J')">J</button>
-                <button class="card-btn card-high" onclick="addCard('Q')">Q</button>
-                <button class="card-btn card-high" onclick="addCard('K')">K</button>
-                <button class="card-btn card-high" onclick="addCard('A')">A</button>
-            </div>
-        </div>
-
-        <!-- Estadísticas -->
-        <div class="stats-section">
-            <div class="stats-grid">
-                <div class="stat-item">
-                    <div class="stat-value" id="countLow">0</div>
-                    <div class="stat-label">Bajas</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-value" id="countNeutral">0</div>
-                    <div class="stat-label">Neutras</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-value" id="countHigh">0</div>
-                    <div class="stat-label">Altas</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-value" id="countAces">32</div>
-                    <div class="stat-label">Ases</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Controles -->
-        <div class="general-controls">
-            <button class="general-btn undo-btn" onclick="undoLast()">↩️ DESHACER</button>
-            <button class="general-btn reset-btn" onclick="resetCount()">🔄 REINICIAR</button>
-        </div>
-    </div>
-
-    <div class="notification" id="notification"></div>
-
-    <script>
-        // Configuración
-        const TOTAL_DECKS = 8;
-        const CARDS_PER_DECK = 52;
-        const TOTAL_CARDS = TOTAL_DECKS * CARDS_PER_DECK;
-        const SCAN_INTERVAL = 1000; // ms entre escaneos
-        const CONFIDENCE_THRESHOLD = 65; // Mínimo 65% de confianza
-
-        // Valores Hi-Lo
-        const HI_LO_VALUES = {
-            '2': 1, '3': 1, '4': 1, '5': 1, '6': 1,
-            '7': 0, '8': 0, '9': 0,
-            '10': -1, 'J': -1, 'Q': -1, 'K': -1, 'A': -1
+/*jshint esversion:6*/
+
+$(function() {
+    const video = $("video")[0];
+
+    var model;
+    var cameraMode = "environment"; // or "user"
+
+    const startVideoStreamPromise = navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: {
+            facingMode: cameraMode
+        }
+    }).then(function(stream) {
+        return new Promise(function(resolve) {
+            video.srcObject = stream;
+            video.onloadeddata = function() {
+                video.play();
+                resolve();
+            };
+        });
+    });
+
+    var publishable_key = "rf_5w20VzQObTXjJhTjq6kad9ubrm33";
+    var toLoad = {
+        model: "playing-cards-ow27d",
+        version: 1
+    };
+
+    const loadModelPromise = new Promise(function(resolve, reject) {
+        roboflow.auth({
+            publishable_key: publishable_key
+        }).load(toLoad).then(function(m) {
+            model = m;
+            window.model = model;
+            resolve();
+        });
+    });
+
+    Promise.all([
+        startVideoStreamPromise,
+        loadModelPromise
+    ]).then(function() {
+        $('body').removeClass('loading');
+        $('#dealerUpcard').show();
+        resizeCanvas();
+        detectFrame();
+    });
+
+    var canvas, ctx;
+    const font = "16px sans-serif";
+
+    function videoDimensions(video) {
+        // Ratio of the video's intrisic dimensions
+        var videoRatio = video.videoWidth / video.videoHeight;
+
+        // The width and height of the video element
+        var width = video.offsetWidth, height = video.offsetHeight;
+
+        // The ratio of the element's width to its height
+        var elementRatio = width/height;
+
+        // If the video element is short and wide
+        if(elementRatio > videoRatio) {
+            width = height * videoRatio;
+        } else {
+            // It must be tall and thin, or exactly equal to the original ratio
+            height = width / videoRatio;
+        }
+
+        return {
+            width: width,
+            height: height
         };
+    }
 
-        const CARD_CATEGORIES = {
-            '2': 'low', '3': 'low', '4': 'low', '5': 'low', '6': 'low',
-            '7': 'neutral', '8': 'neutral', '9': 'neutral',
-            '10': 'high', 'J': 'high', 'Q': 'high', 'K': 'high', 'A': 'high'
-        };
+    $(window).resize(function() {
+        resizeCanvas();
+    });
 
-        // Estado
-        let state = {
-            runningCount: 0,
-            cardsPlayed: 0,
-            cardsRemaining: {},
-            history: [],
-            lastDetectedCard: null,
-            lastDetectionTime: 0
-        };
+    const resizeCanvas = function() {
+        $('canvas').remove();
 
-        // Variables OCR
-        let video = document.getElementById('video');
-        let canvas = document.getElementById('canvas');
-        let processingCanvas = document.getElementById('processingCanvas');
-        let ctx = canvas.getContext('2d');
-        let processingCtx = processingCanvas.getContext('2d');
-        let stream = null;
-        let worker = null;
-        let isScanning = false;
-        let scanInterval = null;
-        let cameraActive = false;
+        canvas = $('<canvas/>');
 
-        // Inicializar cartas
-        function initializeCards() {
-            const ranks = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
-            for (let rank of ranks) {
-                state.cardsRemaining[rank] = 4 * TOTAL_DECKS;
-            }
-        }
+        ctx = canvas[0].getContext("2d");
 
-        // Cargar estado guardado
-        function loadState() {
-            const saved = localStorage.getItem('blackjackCounterProState');
-            if (saved) {
-                state = JSON.parse(saved);
-                updateDisplay();
-            } else {
-                initializeCards();
-            }
-        }
+        var dimensions = videoDimensions(video);
 
-        // Guardar estado
-        function saveState() {
-            localStorage.setItem('blackjackCounterProState', JSON.stringify(state));
-        }
+        // console.log(video.videoWidth, video.videoHeight, video.offsetWidth, video.offsetHeight, dimensions);
 
-        // Inicializar Tesseract Worker
-        async function initOCR() {
-            showLoading('Inicializando motor OCR...');
-            try {
-                worker = await Tesseract.createWorker('eng', 1, {
-                    logger: m => {
-                        if (m.status === 'recognizing text') {
-                            updateLoadingText(`Cargando OCR... ${Math.round(m.progress * 100)}%`);
-                        }
-                    }
-                });
-                hideLoading();
-                addLogEntry('OCR listo', 'success');
-            } catch (err) {
-                hideLoading();
-                showNotification('Error al cargar OCR: ' + err.message, 'error');
-                addLogEntry('Error OCR: ' + err.message, 'error');
-            }
-        }
+        canvas[0].width = video.videoWidth;
+        canvas[0].height = video.videoHeight;
 
-        // Activar/Desactivar cámara
-        async function toggleCamera() {
-            const btn = document.getElementById('cameraBtn');
-            const container = document.getElementById('cameraContainer');
-            const scanBtn = document.getElementById('scanBtn');
+        canvas.css({
+            width: dimensions.width,
+            height: dimensions.height,
+            left: ($(window).width() - dimensions.width) / 2,
+            top: ($(window).height() - dimensions.height) / 2
+        });
 
-            if (!cameraActive) {
-                try {
-                    stream = await navigator.mediaDevices.getUserMedia({
-                        video: { 
-                            facingMode: 'environment',
-                            width: { ideal: 1280 },
-                            height: { ideal: 720 }
-                        },
-                        audio: false
-                    });
+        $('body').append(canvas);
+    };
 
-                    video.srcObject = stream;
-                    await video.play();
+    const renderPredictions = function(predictions) {
+        // console.log(predictions);
+        var dimensions = videoDimensions(video);
 
-                    // Ajustar canvas al tamaño del video
-                    video.onloadedmetadata = () => {
-                        canvas.width = video.videoWidth;
-                        canvas.height = video.videoHeight;
-                        processingCanvas.width = 300; // Resolución de procesamiento
-                        processingCanvas.height = 400;
-                    };
+        var scale = 1;
 
-                    cameraActive = true;
-                    container.classList.add('active');
-                    btn.textContent = 'Desactivar Cámara';
-                    scanBtn.disabled = false;
-                    addLogEntry('Cámara activada', 'success');
+        ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 
-                } catch (err) {
-                    showNotification('Error cámara: ' + err.message, 'error');
-                    addLogEntry('Error cámara: ' + err.message, 'error');
+        predictions.forEach(function(prediction) {
+            const x = prediction.bbox.x;
+            const y = prediction.bbox.y;
+
+            const width = prediction.bbox.width;
+            const height = prediction.bbox.height;
+
+            // Draw the bounding box.
+            ctx.strokeStyle = prediction.color;
+            ctx.lineWidth = 4;
+            ctx.strokeRect((x-width/2)/scale, (y-height/2)/scale, width/scale, height/scale);
+
+            // Draw the label background.
+            ctx.fillStyle = prediction.color;
+            const textWidth = ctx.measureText(prediction.class).width;
+            const textHeight = parseInt(font, 10); // base 10
+            ctx.fillRect((x-width/2)/scale, (y-height/2)/scale, textWidth + 8, textHeight + 4);
+        });
+
+        predictions.forEach(function(prediction) {
+            const x = prediction.bbox.x;
+            const y = prediction.bbox.y;
+
+            const width = prediction.bbox.width;
+            const height = prediction.bbox.height;
+
+            // Draw the text last to ensure it's on top.bbox.
+            ctx.font = font;
+            ctx.textBaseline = "top";
+            ctx.fillStyle = "#000000";
+            ctx.fillText(prediction.class, (x-width/2)/scale+4, (y-height/2)/scale+1);
+        });
+    };
+
+    var dealerUpcard = "A";
+    $('#dealerUpcard button').click(function() {
+        $('#dealerUpcard button').removeClass("selected");
+        $(this).addClass("selected");
+        dealerUpcard = $(this).attr("val");
+        console.log("Set dealer upcard to", dealerUpcard);
+    });
+
+    var prevTime;
+    var pastFrameTimes = [];
+    const detectFrame = function() {
+        if(!model) return requestAnimationFrame(detectFrame);
+
+        model.detect(video).then(function(predictions) {
+            var predictionsParsed = {};
+
+            _.each(predictions, function(p) {
+                if(!predictionsParsed[p.class]) {
+                    predictionsParsed[p.class] = p;
+                } else {
+                    var existing = predictionsParsed[p.class];
+
+                    var top = Math.min( (existing.bbox.y - existing.bbox.height/2), (p.bbox.y - p.bbox.height/2) );
+                    var bottom = Math.max( (existing.bbox.y + existing.bbox.height/2), (p.bbox.y + p.bbox.height/2));
+                    var left = Math.min( (existing.bbox.x - existing.bbox.width/2), (p.bbox.x - p.bbox.width/2) );
+                    var right = Math.max( (existing.bbox.x + existing.bbox.width/2), (p.bbox.x + p.bbox.width/2));
+
+                    existing.bbox.x = (left + right) / 2;
+                    existing.bbox.y = (top + bottom) / 2;
+
+                    existing.bbox.width = (right - left);
+                    existing.bbox.height = (bottom - top);
+
                 }
-            } else {
-                stopCamera();
-            }
-        }
-
-        function stopCamera() {
-            if (stream) {
-                stream.getTracks().forEach(track => track.stop());
-            }
-            if (scanInterval) {
-                clearInterval(scanInterval);
-                isScanning = false;
-            }
-
-            cameraActive = false;
-            isScanning = false;
-            document.getElementById('cameraContainer').classList.remove('active');
-            document.getElementById('detectionZone').classList.remove('scanning');
-            document.getElementById('cameraBtn').textContent = 'Activar Cámara';
-            document.getElementById('scanBtn').textContent = 'Iniciar OCR';
-            document.getElementById('scanBtn').disabled = true;
-            document.getElementById('ocrStatus').textContent = 'INACTIVO';
-            document.getElementById('ocrStatus').className = 'status-badge status-inactive';
-            addLogEntry('Cámara desactivada', 'pending');
-        }
-
-        // Iniciar/Detener escaneo OCR
-        function toggleScanning() {
-            if (!isScanning) {
-                if (!worker) {
-                    showNotification('OCR no está listo aún', 'error');
-                    return;
-                }
-                startScanning();
-            } else {
-                stopScanning();
-            }
-        }
-
-        function startScanning() {
-            isScanning = true;
-            document.getElementById('scanBtn').textContent = 'Detener OCR';
-            document.getElementById('detectionZone').classList.add('scanning');
-            document.getElementById('ocrStatus').textContent = 'ACTIVO';
-            document.getElementById('ocrStatus').className = 'status-badge status-active';
-
-            addLogEntry('OCR iniciado - Escaneando...', 'pending');
-
-            // Escanear cada intervalo
-            scanInterval = setInterval(captureAndProcess, SCAN_INTERVAL);
-
-            // Primera captura inmediata
-            captureAndProcess();
-        }
-
-        function stopScanning() {
-            isScanning = false;
-            if (scanInterval) {
-                clearInterval(scanInterval);
-                scanInterval = null;
-            }
-            document.getElementById('scanBtn').textContent = 'Iniciar OCR';
-            document.getElementById('detectionZone').classList.remove('scanning');
-            document.getElementById('ocrStatus').textContent = 'PAUSADO';
-            document.getElementById('ocrStatus').className = 'status-badge status-inactive';
-            addLogEntry('OCR detenido', 'pending');
-        }
-
-        // Capturar y procesar imagen
-        async function captureAndProcess() {
-            if (!cameraActive || !isScanning) return;
-
-            try {
-                // Dibujar frame actual en canvas
-                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-                // Extraer región de interés (centro de la imagen)
-                const zone = document.getElementById('detectionZone');
-                const zoneRect = zone.getBoundingClientRect();
-                const containerRect = document.getElementById('cameraContainer').getBoundingClientRect();
-
-                // Calcular coordenadas relativas al canvas
-                const scaleX = canvas.width / containerRect.width;
-                const scaleY = canvas.height / containerRect.height;
-
-                const x = (zoneRect.left - containerRect.left) * scaleX;
-                const y = (zoneRect.top - containerRect.top) * scaleY;
-                const w = zoneRect.width * scaleX;
-                const h = zoneRect.height * scaleY;
-
-                // Extraer imagen de la zona
-                const imageData = ctx.getImageData(x, y, w, h);
-                processingCtx.putImageData(imageData, 0, 0);
-
-                // Preprocesar imagen (escala de grises, contraste)
-                preprocessImage(processingCtx, w, h);
-
-                // Convertir a blob para Tesseract
-                const blob = await new Promise(resolve => {
-                    processingCanvas.toBlob(resolve, 'image/jpeg', 0.9);
-                });
-
-                // OCR
-                const result = await worker.recognize(blob);
-                const text = result.data.text.trim().toUpperCase();
-                const confidence = result.data.confidence;
-
-                // Procesar resultado
-                processOCRResult(text, confidence);
-
-            } catch (err) {
-                console.error('Error en procesamiento:', err);
-            }
-        }
-
-        // Preprocesar imagen para mejorar OCR
-        function preprocessImage(context, width, height) {
-            const imgData = context.getImageData(0, 0, width, height);
-            const data = imgData.data;
-
-            // Convertir a escala de grises y aumentar contraste
-            for (let i = 0; i < data.length; i += 4) {
-                const gray = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
-                const contrast = (gray - 128) * 1.5 + 128; // Aumentar contraste
-                const final = Math.max(0, Math.min(255, contrast));
-
-                // Binarización simple (threshold)
-                const threshold = final > 150 ? 255 : 0;
-
-                data[i] = threshold;     // R
-                data[i + 1] = threshold; // G
-                data[i + 2] = threshold; // B
-            }
-
-            context.putImageData(imgData, 0, 0);
-        }
-
-        // Procesar resultado OCR
-        function processOCRResult(text, confidence) {
-            // Limpiar texto
-            const cleanText = text.replace(/[^0-9JQKA]/g, '');
-
-            // Validar carta
-            let card = null;
-
-            // Buscar números 2-10
-            if (/10/.test(cleanText)) card = '10';
-            else if (/[2-9]/.test(cleanText)) {
-                const match = cleanText.match(/[2-9]/);
-                if (match) card = match[0];
-            }
-            // Buscar figuras
-            else if (/J/.test(cleanText)) card = 'J';
-            else if (/Q/.test(cleanText)) card = 'Q';
-            else if (/K/.test(cleanText)) card = 'K';
-            else if (/A/.test(cleanText)) card = 'A';
-
-            // Actualizar UI de confianza
-            document.getElementById('confidenceFill').style.width = confidence + '%';
-
-            if (card && confidence >= CONFIDENCE_THRESHOLD) {
-                // Anti-duplicado: no contar la misma carta si pasaron menos de 3 segundos
-                const now = Date.now();
-                if (card === state.lastDetectedCard && (now - state.lastDetectionTime) < 3000) {
-                    return; // Ignorar duplicado
-                }
-
-                // Mostrar detección
-                document.getElementById('lastDetection').textContent = card;
-                document.getElementById('lastDetection').style.color = '#00ff88';
-
-                // Agregar carta
-                addCard(card, true);
-
-                // Actualizar estado anti-duplicado
-                state.lastDetectedCard = card;
-                state.lastDetectionTime = now;
-
-                addLogEntry(`Detectado: ${card} (${Math.round(confidence)}%)`, 'success');
-            } else if (card) {
-                // Carta detectada pero confianza baja
-                document.getElementById('lastDetection').textContent = card + '?';
-                document.getElementById('lastDetection').style.color = '#ffe66d';
-                addLogEntry(`Dudoso: ${card} (${Math.round(confidence)}%)`, 'error');
-            } else {
-                document.getElementById('lastDetection').textContent = '-';
-                document.getElementById('lastDetection').style.color = '#ffd700';
-            }
-        }
-
-        // Agregar carta (manual o OCR)
-        function addCard(card, fromOCR = false) {
-            if (state.cardsRemaining[card] <= 0) {
-                if (!fromOCR) showNotification('No quedan ' + card, 'error');
-                return;
-            }
-
-            const value = HI_LO_VALUES[card];
-            state.runningCount += value;
-            state.cardsPlayed++;
-            state.cardsRemaining[card]--;
-
-            state.history.push({
-                card: card,
-                value: value,
-                timestamp: Date.now(),
-                fromOCR: fromOCR
             });
 
-            saveState();
-            updateDisplay();
+            var cards = _.values(predictionsParsed);
 
-            if (!fromOCR) {
-                showNotification(`Agregado: ${card} (${value > 0 ? '+' : ''}${value})`, 'success');
-            }
-        }
+            var soft = false;
+            var isPair = cards.length == 2 && rankOf(cards[0].class) == rankOf(cards[1].class);
+            var total = 0;
+            var numberOfAces = 0;
+            _.each(cards, function(card) {
+                var value = getValueOfCard(card.class);
+                total += value;
 
-        // Calcular True Count
-        function getTrueCount() {
-            const cardsRemaining = TOTAL_CARDS - state.cardsPlayed;
-            const decksRemaining = cardsRemaining / CARDS_PER_DECK;
-            return decksRemaining > 0 ? (state.runningCount / decksRemaining) : 0;
-        }
+                soft = soft || isAnAce(card.class);
+                if(isAnAce(card.class)) numberOfAces++;
+            });
+            var isBlackjack = (cards.length == 2) && (total == 21);
+            var busted = total > 21;
 
-        // Calcular probabilidades
-        function calculateProbabilities() {
-            const cardsRemaining = TOTAL_CARDS - state.cardsPlayed;
-            if (cardsRemaining === 0) return { high: 0, low: 0, neutral: 0 };
+            if(busted && soft) {
+                while(numberOfAces > 0 && busted) {
+                    total -= 10;
+                    numberOfAces--;
 
-            let highCards = 0, lowCards = 0, neutralCards = 0;
-
-            for (let card in state.cardsRemaining) {
-                const count = state.cardsRemaining[card];
-                if (CARD_CATEGORIES[card] === 'high') highCards += count;
-                else if (CARD_CATEGORIES[card] === 'low') lowCards += count;
-                else neutralCards += count;
+                    busted = total > 21;
+                }
+                soft = numberOfAces > 0;
             }
 
-            return {
-                high: ((highCards / cardsRemaining) * 100).toFixed(1),
-                low: ((lowCards / cardsRemaining) * 100).toFixed(1),
-                neutral: ((neutralCards / cardsRemaining) * 100).toFixed(1)
-            };
-        }
+            /*
+            console.log("vars:", {
+                soft: soft,
+                isPair: isPair,
+                total: total
+            });
+            */
 
-        // Actualizar display
-        function updateDisplay() {
-            // Conteos
-            document.getElementById('runningCount').textContent = 
-                (state.runningCount > 0 ? '+' : '') + state.runningCount;
+            var action = determineAction(cards, dealerUpcard, total, soft, isPair, busted, isBlackjack);
 
-            const trueCount = parseFloat(getTrueCount());
-            const trueCountEl = document.getElementById('trueCount');
-            trueCountEl.textContent = (trueCount > 0 ? '+' : '') + trueCount.toFixed(1);
-            trueCountEl.className = 'count-value true-count ' + (trueCount > 0 ? 'positive' : '');
-
-            const cardsRemaining = TOTAL_CARDS - state.cardsPlayed;
-            const decksRemaining = (cardsRemaining / CARDS_PER_DECK).toFixed(1);
-            document.getElementById('decksRemaining').textContent = decksRemaining;
-            document.getElementById('cardsPlayed').textContent = 
-                state.cardsPlayed + '/' + TOTAL_CARDS;
-
-            // Probabilidades
-            const probs = calculateProbabilities();
-            document.getElementById('probHigh').style.width = probs.high + '%';
-            document.getElementById('probHigh').textContent = probs.high + '%';
-            document.getElementById('probLow').style.width = probs.low + '%';
-            document.getElementById('probLow').textContent = probs.low + '%';
-            document.getElementById('probNeutral').style.width = probs.neutral + '%';
-            document.getElementById('probNeutral').textContent = probs.neutral + '%';
-
-            // Sugerencia
-            const suggestionEl = document.getElementById('suggestion');
-            if (trueCount >= 2) {
-                suggestionEl.textContent = '🔥 AUMENTAR APUESTA';
-                suggestionEl.className = 'suggestion bet-high';
-            } else if (trueCount <= -1) {
-                suggestionEl.textContent = '❄️ APUESTA MÍNIMA';
-                suggestionEl.className = 'suggestion bet-low';
+            if(cards.length == 0) {
+                $('#handValue').html("Find a Blackjack Hand");
+            } else if(busted) {
+                // console.log("Hand Value: Bust");
+                $('#handValue').html("Bust (" + total + "). You lose.");
+            } else if(isBlackjack) {
+                // console.log("Hand Value: Blackjack!");
+                $('#handValue').html("Blackjack, you win!");
+            } else if(isPair) {
+                // console.log("Hand Value: Pair of " + rankOf(cards[0].class) + "s");
+                $('#handValue').html("Pair of " + pluralize(rankOf(cards[0].class)) + ", " + action);
+            } else if(soft) {
+                // console.log("Hand Value: Soft " + total);
+                $('#handValue').html("Soft " + total + ", " + action);
             } else {
-                suggestionEl.textContent = '➖ SIN VENTAJA';
-                suggestionEl.className = 'suggestion wait';
+                // console.log("Hand Value: Hard " + total);
+                $('#handValue').html("Hard " + total + ", " + action);
             }
 
-            // Estadísticas
-            let lowSeen = 0, neutralSeen = 0, highSeen = 0;
-            const originalCards = {};
-            for (let card in state.cardsRemaining) {
-                originalCards[card] = 4 * TOTAL_DECKS;
-                const seen = originalCards[card] - state.cardsRemaining[card];
-                if (CARD_CATEGORIES[card] === 'low') lowSeen += seen;
-                else if (CARD_CATEGORIES[card] === 'neutral') neutralSeen += seen;
-                else highSeen += seen;
+            requestAnimationFrame(detectFrame);
+            renderPredictions(cards);
+
+            if(prevTime) {
+                pastFrameTimes.push(Date.now() - prevTime);
+                if(pastFrameTimes.length > 30) pastFrameTimes.shift();
+
+                var totalFPS = 0;
+                _.each(pastFrameTimes, function(t) {
+                    totalFPS += t/1000;
+                });
+
+                var fps = pastFrameTimes.length / totalFPS;
+                $('#fps').text(Math.round(fps));
             }
+            prevTime = Date.now();
+        }).catch(function(e) {
+            // console.log("CAUGHT", e);
+            requestAnimationFrame(detectFrame);
+        });
+    };
+});
 
-            document.getElementById('countLow').textContent = lowSeen;
-            document.getElementById('countNeutral').textContent = neutralSeen;
-            document.getElementById('countHigh').textContent = highSeen;
-            document.getElementById('countAces').textContent = state.cardsRemaining['A'];
+function suitless(cls) {
+    return cls.substring(0, cls.length-1);
+}
+
+function rankOf(cls) {
+    switch(suitless(cls)) {
+        case "2": return "Two";
+        case "3": return "Three";
+        case "4": return "Four";
+        case "5": return "Five";
+        case "6": return "Six";
+        case "7": return "Seven";
+        case "8": return "Eight";
+        case "9": return "Nine";
+        case "10": return "Ten";
+        case "J": return "Jack";
+        case "Q": return "Queen";
+        case "K": return "King";
+        case "A": return "Ace";
+    }
+}
+
+function pluralize(cls) {
+    if(cls == "Six") return "Sixes";
+    return cls + "s";
+}
+
+function getValueOfCard(cls) {
+    switch(suitless(cls)) {
+        case "2": return 2;
+        case "3": return 3;
+        case "4": return 4;
+        case "5": return 5;
+        case "6": return 6;
+        case "7": return 7;
+        case "8": return 8;
+        case "9": return 9;
+        case "10":
+        case "J":
+        case "Q":
+        case "K":
+            return 10;
+        case "A": return 11;
+    }
+}
+
+function isAnAce(cls) {
+    return suitless(cls) == "A";
+}
+
+function determineAction(cards, dealerUpcard, total, soft, isPair, busted, isBlackjack) {
+    if(isBlackjack) return "You win.";
+    if(busted) return "You lose.";
+
+    if(cards.length == 2) {
+        if(isPair) {
+            // determine if we should split
+            var pairOf = suitless(cards[0].class);
+            if(pairOf == "8" || pairOf == "A") return "Split.";
+            if(["2", "3", "6", "7", "9"].includes(pairOf) && getValueOfCard(dealerUpcard + "D") < 7) return "Split.";
         }
 
-        // Deshacer
-        function undoLast() {
-            if (state.history.length === 0) {
-                showNotification('No hay cartas para deshacer', 'error');
-                return;
-            }
-
-            const last = state.history.pop();
-            state.runningCount -= last.value;
-            state.cardsPlayed--;
-            state.cardsRemaining[last.card]++;
-
-            saveState();
-            updateDisplay();
-            showNotification('↩️ Deshecho: ' + last.card, 'success');
-            addLogEntry('Deshecho: ' + last.card, 'pending');
+        // determine if we should double down
+        if(soft) {
+            if(total >= 13 && total <= 16 && (dealerUpcard == "5" || dealerUpcard == "6")) return "Double Down.";
+            if((total == 17 || total == 18) && getValueOfCard(dealerUpcard + "D") < 7) return "Double Down.";
+        } else {
+            if(total == 9 && getValueOfCard(dealerUpcard + "D") < 7) return "Double Down.";
+            if(total == 10 && getValueOfCard(dealerUpcard + "D") < 10) return "Double Down.";
+            if(total == 11) return "Double Down.";
         }
+    }
 
-        // Reiniciar
-        function resetCount() {
-            if (!confirm('¿Reiniciar todo el conteo?')) return;
-
-            state = {
-                runningCount: 0,
-                cardsPlayed: 0,
-                cardsRemaining: {},
-                history: [],
-                lastDetectedCard: null,
-                lastDetectionTime: 0
-            };
-            initializeCards();
-            saveState();
-            updateDisplay();
-            showNotification('🔄 Conteo reiniciado', 'success');
-            addLogEntry('Conteo reiniciado', 'pending');
+    // determine if we should hit or stay
+    if(soft) {
+        if(total < 18) return "Hit.";
+        if(total > 18) return "Stay.";
+        if(getValueOfCard(dealerUpcard + "D") <= 8) return "Stay.";
+        return "Hit.";
+    } else {
+        if(total < 12) return "Hit.";
+        if(getValueOfCard(dealerUpcard + "D") < 7) {
+            if(total == 12 && (dealerUpcard == "2" || dealerUpcard == "3")) return "Hit.";
+            return "Stay.";
+        } else {
+            if(total < 17) return "Hit.";
+            return "Stay.";
         }
-
-        // Utilidades UI
-        function addLogEntry(message, type) {
-            const log = document.getElementById('detectionLog');
-            const entry = document.createElement('div');
-            entry.className = 'log-entry ' + type;
-            entry.textContent = new Date().toLocaleTimeString() + ' - ' + message;
-            log.insertBefore(entry, log.firstChild);
-
-            // Mantener solo últimas 20 entradas
-            while (log.children.length > 20) {
-                log.removeChild(log.lastChild);
-            }
-        }
-
-        function showNotification(message, type = '') {
-            const notif = document.getElementById('notification');
-            notif.textContent = message;
-            notif.className = 'notification ' + type;
-            notif.classList.add('show');
-            setTimeout(() => notif.classList.remove('show'), 2500);
-        }
-
-        function showLoading(text) {
-            document.getElementById('loadingOverlay').classList.add('active');
-            updateLoadingText(text);
-        }
-
-        function updateLoadingText(text) {
-            document.querySelector('.loading-text').textContent = text;
-        }
-
-        function hideLoading() {
-            document.getElementById('loadingOverlay').classList.remove('active');
-        }
-
-        // Inicializar
-        window.onload = function() {
-            initializeCards();
-            loadState();
-            initOCR(); // Cargar OCR al inicio
-        };
-
-        // Limpiar al cerrar
-        window.onbeforeunload = function() {
-            if (worker) worker.terminate();
-            stopCamera();
-        };
-    </script>
-</body>
-</html>
+    }
+}
