@@ -3,8 +3,8 @@
 $(function() {
     const CONFIG = {
         publishable_key: "rf_5w20VzQObTXjJhTjq6kad9ubrm33",
-        model: "blackjack-cards-vex7n",
-        version: 2,
+        model: "playing-cards-ow27d",
+        version: 1,
         confidenceThreshold: 0.5,
         cameraMode: "environment",
         soft17: true,
@@ -107,6 +107,8 @@ $(function() {
         } catch (error) {
             console.error("Error de inicialización:", error);
             showToast('Error: ' + error.message, 'error');
+            $("#loadingScreen").addClass("hidden");
+            $("body").removeClass("loading");
         }
     }
 
@@ -141,7 +143,10 @@ $(function() {
                 model = m;
                 window.model = model;
                 resolve();
-            }).catch(reject);
+            }).catch((err) => {
+                console.error("Error cargando modelo:", err);
+                reject(err);
+            });
         });
     }
 
