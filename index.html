@@ -1,51 +1,223 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
-    <title>Roboflow Blackjack Basic Strategy Demo</title>
-
-    <meta name="viewport" content="width=640, user-scalable=no" />
-
-    <meta name="description" content="A computer vision powered Blackjack basic strategy app powered by Roboflow.">
-    <meta name="twitter:image:src" content="https://repository-images.githubusercontent.com/401149099/c7243aad-c3b6-4299-a1d2-e3039fd55994" />
-    <meta name="twitter:site" content="@github" />
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="roboflow-ai/blackjack-basic-strategy" />
-    <meta name="twitter:description" content="A computer vision powered Blackjack basic strategy app powered by Roboflow." />
-    <meta property="og:image" content="https://repository-images.githubusercontent.com/401149099/c7243aad-c3b6-4299-a1d2-e3039fd55994" />
-    <meta property="og:image:alt" content="A computer vision powered Blackjack basic strategy app powered by Roboflow." />
-    <meta property="og:site_name" content="GitHub Pages" />
-    <meta property="og:type" content="object" />
-    <meta property="og:title" content="roboflow-ai/blackjack-basic-strategy" />
-    <meta property="og:url" content="https://github.com/roboflow-ai/blackjack-basic-strategy" />
-    <meta property="og:description" content="A computer vision powered Blackjack basic strategy app powered by Roboflow." />
-
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js" integrity="sha512-bLT0Qm9VnAYZDflyKcBaQ2gg0hSYNQrJ8RilYldYQ1FxQYoCLtUjuuRuZo+fjqhx/qtq/1itJ0C2ejDxltZVFg==" crossorigin="anonymous"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js" integrity="sha512-90vH1Z83AJY9DmlWa8WkjkV79yfS2n2Oxhsi2dZbIv0nC4E6m5AbH8Nh156kkM7JePmqD6tcZsfad1ueoaovww==" crossorigin="anonymous"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/async/3.2.0/async.min.js" integrity="sha512-6K6+H87tLdCWvY5ml9ZQXLRlPlDEt8uXmtELhuJRgFyEDv6JvndWHg3jadJuBVGPEhhA2AAt+ROMC2V7EvTIWw==" crossorigin="anonymous"></script>
-
-    <script src="https://cdn.roboflow.com/0.2.0/roboflow.js"></script>
-
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Blackjack AI Pro - Detector de Cartas</title>
+    
+    <meta name="description" content="Detector profesional de cartas de Blackjack con IA y estrategia básica optimizada">
+    <meta name="theme-color" content="#0f172a">
+    
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎰</text></svg>">
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.21/lodash.min.js"></script>
+    <script src="https://cdn.roboflow.com/0.2.26/roboflow.js"></script>
+    
     <link rel="stylesheet" href="./main.css">
-    <script src="./main.js"></script>
 </head>
 <body class="loading">
-    <div id="handValue"></div>
-    <video id="video" autoplay muted playsinline></video>
-    <div id="fps"></div>
-    <div id="dealerUpcard">
-        <div class="instructions">Dealer Upcard:</div>
-        <div class="options">
-            <button val="A" class="selected">Ace</button>
-            <button val="2">Two</button>
-            <button val="3">Three</button>
-            <button val="4">Four</button>
-            <button val="5">Five</button>
-            <button val="6">Six</button>
-            <button val="7">Seven</button>
-            <button val="8">Eight</button>
-            <button val="9">Nine</button>
-            <button val="10">Ten</button>
+    <div id="loadingScreen">
+        <div class="loading-content">
+            <div class="spinner"></div>
+            <h2>Iniciando Blackjack AI Pro</h2>
+            <p>Cargando modelo de inteligencia artificial...</p>
+            <div class="loading-progress">
+                <div class="progress-bar"></div>
+            </div>
         </div>
     </div>
+
+    <header class="app-header">
+        <div class="logo">
+            <i class="fas fa-brain"></i>
+            <span>Blackjack AI Pro</span>
+        </div>
+        <div class="header-stats">
+            <div class="stat">
+                <i class="fas fa-video"></i>
+                <span id="fps">0</span> FPS
+            </div>
+            <div class="stat">
+                <i class="fas fa-bullseye"></i>
+                <span id="confidence">0%</span>
+            </div>
+        </div>
+        <button class="settings-btn" id="toggleSettings">
+            <i class="fas fa-cog"></i>
+        </button>
+    </header>
+
+    <main class="main-container">
+        <div class="video-container">
+            <video id="video" autoplay muted playsinline></video>
+            <canvas id="overlay"></canvas>
+            <div class="detection-zone player-zone">
+                <span class="zone-label">TU MANO</span>
+            </div>
+        </div>
+
+        <aside class="control-panel" id="controlPanel">
+            <div class="panel-section">
+                <h3><i class="fas fa-user-tie"></i> Carta del Crupier</h3>
+                <div class="dealer-cards">
+                    <button class="card-btn selected" data-value="A">
+                        <span class="card-rank">A</span>
+                        <span class="card-suit">♠</span>
+                    </button>
+                    <button class="card-btn" data-value="2">
+                        <span class="card-rank">2</span>
+                        <span class="card-suit">♥</span>
+                    </button>
+                    <button class="card-btn" data-value="3">
+                        <span class="card-rank">3</span>
+                        <span class="card-suit">♦</span>
+                    </button>
+                    <button class="card-btn" data-value="4">
+                        <span class="card-rank">4</span>
+                        <span class="card-suit">♣</span>
+                    </button>
+                    <button class="card-btn" data-value="5">
+                        <span class="card-rank">5</span>
+                        <span class="card-suit">♠</span>
+                    </button>
+                    <button class="card-btn" data-value="6">
+                        <span class="card-rank">6</span>
+                        <span class="card-suit">♥</span>
+                    </button>
+                    <button class="card-btn" data-value="7">
+                        <span class="card-rank">7</span>
+                        <span class="card-suit">♦</span>
+                    </button>
+                    <button class="card-btn" data-value="8">
+                        <span class="card-rank">8</span>
+                        <span class="card-suit">♣</span>
+                    </button>
+                    <button class="card-btn" data-value="9">
+                        <span class="card-rank">9</span>
+                        <span class="card-suit">♠</span>
+                    </button>
+                    <button class="card-btn" data-value="10">
+                        <span class="card-rank">10</span>
+                        <span class="card-suit">♥</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="panel-section">
+                <h3><i class="fas fa-cards"></i> Cartas Detectadas</h3>
+                <div id="detectedCards" class="detected-cards">
+                    <p class="empty-state">Apunta la cámara a las cartas</p>
+                </div>
+            </div>
+
+            <div class="panel-section analysis-section">
+                <h3><i class="fas fa-chart-line"></i> Análisis</h3>
+                <div class="analysis-content" id="analysisContent">
+                    <div class="hand-value" id="handValue">
+                        <span class="value">--</span>
+                        <span class="label">Valor de mano</span>
+                    </div>
+                    <div class="hand-type" id="handType">Esperando cartas...</div>
+                </div>
+            </div>
+
+            <div class="panel-section recommendation-section" id="recommendationSection">
+                <h3><i class="fas fa-lightbulb"></i> Estrategia Recomendada</h3>
+                <div class="recommendation" id="recommendation">
+                    <div class="action-icon">
+                        <i class="fas fa-hand-paper"></i>
+                    </div>
+                    <div class="action-text">Esperando...</div>
+                </div>
+                <div class="strategy-details" id="strategyDetails"></div>
+            </div>
+
+            <div class="panel-section stats-section">
+                <h3><i class="fas fa-trophy"></i> Estadísticas</h3>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <span class="stat-value" id="totalHands">0</span>
+                        <span class="stat-label">Manos</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value" id="blackjacks">0</span>
+                        <span class="stat-label">Blackjacks</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value" id="busts">0</span>
+                        <span class="stat-label">Busts</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value" id="pairs">0</span>
+                        <span class="stat-label">Pares</span>
+                    </div>
+                </div>
+            </div>
+        </aside>
+    </main>
+
+    <div class="modal" id="settingsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><i class="fas fa-cog"></i> Configuración</h2>
+                <button class="close-btn" id="closeSettings">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="setting-group">
+                    <label>Modo de Cámara</label>
+                    <select id="cameraMode">
+                        <option value="environment">Trasera (Recomendado)</option>
+                        <option value="user">Frontal</option>
+                    </select>
+                </div>
+                <div class="setting-group">
+                    <label>Umbral de Confianza</label>
+                    <input type="range" id="confidenceThreshold" min="0.1" max="0.9" step="0.1" value="0.5">
+                    <span class="range-value" id="confidenceValue">50%</span>
+                </div>
+                <div class="setting-group">
+                    <label>Reglas del Juego</label>
+                    <div class="checkbox-group">
+                        <label class="checkbox">
+                            <input type="checkbox" id="soft17" checked>
+                            <span>Crupier pide en Soft 17</span>
+                        </label>
+                        <label class="checkbox">
+                            <input type="checkbox" id="doubleAfterSplit" checked>
+                            <span>Doble después de dividir</span>
+                        </label>
+                        <label class="checkbox">
+                            <input type="checkbox" id="surrender" checked>
+                            <span>Permitir rendición</span>
+                        </label>
+                    </div>
+                </div>
+                <div class="setting-group">
+                    <label>Número de Mazos</label>
+                    <select id="deckCount">
+                        <option value="1">1 Mazo</option>
+                        <option value="2">2 Mazos</option>
+                        <option value="4">4 Mazos</option>
+                        <option value="6" selected>6 Mazos</option>
+                        <option value="8">8 Mazos</option>
+                    </select>
+                </div>
+                <button class="btn-primary" id="saveSettings">
+                    <i class="fas fa-save"></i> Guardar Cambios
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toastContainer"></div>
+
+    <script src="./main.js"></script>
 </body>
 </html>
