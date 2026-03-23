@@ -1,0 +1,1010 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Blackjack Counter - Entrenador Hi-Lo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+            color: #fff;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 480px;
+            margin: 0 auto;
+            padding: 15px;
+        }
+
+        header {
+            text-align: center;
+            padding: 20px 0;
+            border-bottom: 2px solid #ffd700;
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            color: #ffd700;
+            text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+        }
+
+        .subtitle {
+            font-size: 0.75rem;
+            color: #aaa;
+            margin-top: 5px;
+        }
+
+        /* Display Principal del Conteo */
+        .main-display {
+            background: rgba(0, 0, 0, 0.6);
+            border: 2px solid #ffd700;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            text-align: center;
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.2);
+        }
+
+        .count-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .count-box {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 10px;
+        }
+
+        .count-label {
+            font-size: 0.75rem;
+            color: #aaa;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .count-value {
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin-top: 5px;
+        }
+
+        .running-count { color: #00ff88; }
+        .true-count { color: #ff6b6b; }
+        .decks-remaining { color: #4ecdc4; }
+        .cards-played { color: #ffe66d; }
+
+        .true-count.positive { color: #ff6b6b; text-shadow: 0 0 10px rgba(255, 107, 107, 0.5); }
+        .true-count.negative { color: #4ecdc4; }
+
+        /* Probabilidades */
+        .probabilities {
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+
+        .prob-title {
+            font-size: 0.9rem;
+            color: #ffd700;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+        }
+
+        .prob-bars {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .prob-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .prob-label {
+            width: 80px;
+            font-size: 0.8rem;
+        }
+
+        .prob-bar-container {
+            flex: 1;
+            height: 25px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .prob-bar {
+            height: 100%;
+            border-radius: 12px;
+            transition: width 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding-right: 8px;
+            font-size: 0.75rem;
+            font-weight: bold;
+        }
+
+        .prob-high { background: linear-gradient(90deg, #ff6b6b, #ee5a6f); }
+        .prob-low { background: linear-gradient(90deg, #4ecdc4, #44a3aa); }
+        .prob-neutral { background: linear-gradient(90deg, #ffe66d, #f4d03f); color: #333; }
+
+        .suggestion {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 8px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .suggestion.bet-high {
+            background: rgba(255, 107, 107, 0.3);
+            border: 1px solid #ff6b6b;
+            color: #ff6b6b;
+        }
+
+        .suggestion.bet-low {
+            background: rgba(78, 205, 196, 0.3);
+            border: 1px solid #4ecdc4;
+            color: #4ecdc4;
+        }
+
+        .suggestion.wait {
+            background: rgba(255, 230, 109, 0.3);
+            border: 1px solid #ffe66d;
+            color: #ffe66d;
+        }
+
+        /* Sección de Cámara y Entrada */
+        .input-section {
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 15px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        .section-title {
+            font-size: 0.9rem;
+            color: #ffd700;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .camera-container {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 4/3;
+            background: #000;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 15px;
+        }
+
+        #video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        #canvas {
+            display: none;
+        }
+
+        .camera-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            border: 2px dashed rgba(255, 215, 0, 0.5);
+            border-radius: 10px;
+            pointer-events: none;
+        }
+
+        .camera-hint {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.7);
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            color: #ffd700;
+        }
+
+        .camera-btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            border-radius: 10px;
+            color: white;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            margin-bottom: 15px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .camera-btn:active {
+            transform: scale(0.98);
+        }
+
+        .camera-btn:disabled {
+            background: #444;
+            cursor: not-allowed;
+        }
+
+        /* Botones de Cartas Rápidos */
+        .quick-buttons {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 8px;
+            margin-top: 15px;
+        }
+
+        .card-btn {
+            padding: 12px 5px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card-btn:before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+
+        .card-btn:active:before {
+            width: 100px;
+            height: 100px;
+        }
+
+        .card-low {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            color: #fff;
+        }
+
+        .card-neutral {
+            background: linear-gradient(135deg, #f1c40f 0%, #f39c12 100%);
+            color: #333;
+        }
+
+        .card-high {
+            background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%);
+            color: #fff;
+        }
+
+        .card-btn span {
+            display: block;
+            font-size: 0.65rem;
+            margin-top: 2px;
+            opacity: 0.9;
+        }
+
+        /* Historial y Estadísticas */
+        .history-section {
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 15px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        .history-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            text-align: center;
+            margin-bottom: 15px;
+        }
+
+        .history-item {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 10px;
+            border-radius: 8px;
+        }
+
+        .history-number {
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: #ffd700;
+        }
+
+        .history-label {
+            font-size: 0.65rem;
+            color: #aaa;
+            text-transform: uppercase;
+        }
+
+        .recent-cards {
+            display: flex;
+            gap: 5px;
+            overflow-x: auto;
+            padding: 10px 0;
+            scrollbar-width: none;
+        }
+
+        .recent-cards::-webkit-scrollbar {
+            display: none;
+        }
+
+        .recent-card {
+            min-width: 40px;
+            height: 55px;
+            background: #fff;
+            border-radius: 5px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 0.9rem;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        }
+
+        .recent-card.red {
+            color: #d32f2f;
+        }
+
+        .recent-card.black {
+            color: #212121;
+        }
+
+        .recent-card span {
+            font-size: 0.6rem;
+            margin-top: 2px;
+        }
+
+        /* Controles */
+        .controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .control-btn {
+            padding: 15px;
+            border: 2px solid;
+            border-radius: 10px;
+            background: transparent;
+            color: #fff;
+            font-size: 0.9rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .reset-btn {
+            border-color: #ff6b6b;
+            color: #ff6b6b;
+        }
+
+        .reset-btn:active {
+            background: rgba(255, 107, 107, 0.2);
+        }
+
+        .undo-btn {
+            border-color: #ffe66d;
+            color: #ffe66d;
+        }
+
+        .undo-btn:active {
+            background: rgba(255, 230, 109, 0.2);
+        }
+
+        /* Modal de Configuración */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            border: 2px solid #ffd700;
+            border-radius: 15px;
+            padding: 25px;
+            max-width: 400px;
+            width: 100%;
+        }
+
+        .modal-title {
+            color: #ffd700;
+            font-size: 1.2rem;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .setting-item {
+            margin-bottom: 20px;
+        }
+
+        .setting-label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+            color: #aaa;
+        }
+
+        .setting-input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #444;
+            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.3);
+            color: #fff;
+            font-size: 1rem;
+        }
+
+        .modal-btn {
+            width: 100%;
+            padding: 15px;
+            background: #ffd700;
+            border: none;
+            border-radius: 8px;
+            color: #000;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        /* Notificación */
+        .notification {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%) translateY(-100px);
+            background: rgba(0, 0, 0, 0.9);
+            border: 2px solid #ffd700;
+            border-radius: 10px;
+            padding: 15px 25px;
+            z-index: 2000;
+            transition: transform 0.3s ease;
+            text-align: center;
+        }
+
+        .notification.show {
+            transform: translateX(-50%) translateY(0);
+        }
+
+        /* Indicador de ventaja */
+        .advantage-meter {
+            margin-top: 15px;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+        }
+
+        .advantage-title {
+            font-size: 0.8rem;
+            color: #aaa;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+        }
+
+        .advantage-bar {
+            height: 30px;
+            background: linear-gradient(90deg, #4ecdc4 0%, #ffe66d 50%, #ff6b6b 100%);
+            border-radius: 15px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .advantage-marker {
+            position: absolute;
+            top: 0;
+            width: 4px;
+            height: 100%;
+            background: #fff;
+            box-shadow: 0 0 10px rgba(0,0,0,0.8);
+            transition: left 0.5s ease;
+            z-index: 10;
+        }
+
+        .advantage-labels {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 5px;
+            font-size: 0.7rem;
+            color: #aaa;
+        }
+
+        /* Responsive */
+        @media (max-width: 380px) {
+            .quick-buttons {
+                grid-template-columns: repeat(5, 1fr);
+                gap: 5px;
+            }
+
+            .card-btn {
+                padding: 10px 2px;
+                font-size: 1rem;
+            }
+
+            .count-value {
+                font-size: 2rem;
+            }
+        }
+
+        /* Animación de pulso para true count alto */
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 20px rgba(255, 107, 107, 0.5); }
+            50% { box-shadow: 0 0 40px rgba(255, 107, 107, 0.8); }
+        }
+
+        .hot-table {
+            animation: pulse 2s infinite;
+        }
+    </style>
+<base target="_blank">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>♠️ BLACKJACK COUNTER ♥️</h1>
+            <div class="subtitle">Entrenador Hi-Lo | 8 Mazos | Modo Educativo</div>
+        </header>
+
+        <!-- Display Principal -->
+        <div class="main-display" id="mainDisplay">
+            <div class="count-grid">
+                <div class="count-box">
+                    <div class="count-label">Running Count</div>
+                    <div class="count-value running-count" id="runningCount">0</div>
+                </div>
+                <div class="count-box">
+                    <div class="count-label">True Count</div>
+                    <div class="count-value true-count" id="trueCount">0.0</div>
+                </div>
+                <div class="count-box">
+                    <div class="count-label">Mazos Restantes</div>
+                    <div class="count-value decks-remaining" id="decksRemaining">8.0</div>
+                </div>
+                <div class="count-box">
+                    <div class="count-label">Cartas Jugadas</div>
+                    <div class="count-value cards-played" id="cardsPlayed">0/416</div>
+                </div>
+            </div>
+
+            <!-- Probabilidades -->
+            <div class="probabilities">
+                <div class="prob-title">📊 Probabilidades de siguiente carta</div>
+                <div class="prob-bars">
+                    <div class="prob-item">
+                        <div class="prob-label">Alta (10-A)</div>
+                        <div class="prob-bar-container">
+                            <div class="prob-bar prob-high" id="probHigh" style="width: 38%">38%</div>
+                        </div>
+                    </div>
+                    <div class="prob-item">
+                        <div class="prob-label">Baja (2-6)</div>
+                        <div class="prob-bar-container">
+                            <div class="prob-bar prob-low" id="probLow" style="width: 38%">38%</div>
+                        </div>
+                    </div>
+                    <div class="prob-item">
+                        <div class="prob-label">Neutra (7-9)</div>
+                        <div class="prob-bar-container">
+                            <div class="prob-bar prob-neutral" id="probNeutral" style="width: 24%">24%</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="suggestion wait" id="suggestion">
+                    ESPERAR - Apuesta mínima
+                </div>
+            </div>
+
+            <!-- Medidor de Ventaja -->
+            <div class="advantage-meter">
+                <div class="advantage-title">Medidor de Ventaja del Jugador</div>
+                <div class="advantage-bar">
+                    <div class="advantage-marker" id="advantageMarker" style="left: 50%"></div>
+                </div>
+                <div class="advantage-labels">
+                    <span>Ventaja Casa</span>
+                    <span>Neutral</span>
+                    <span>Ventaja Jugador</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sección de Entrada -->
+        <div class="input-section">
+            <div class="section-title">🎯 Registro de Cartas</div>
+
+            <!-- Cámara (Opcional - para captura manual) -->
+            <div class="camera-container" id="cameraContainer" style="display: none;">
+                <video id="video" autoplay playsinline></video>
+                <canvas id="canvas"></canvas>
+                <div class="camera-overlay"></div>
+                <div class="camera-hint">Centra la carta y toca capturar</div>
+            </div>
+
+            <button class="camera-btn" id="cameraBtn" onclick="toggleCamera()">
+                📷 Activar Cámara (Opcional)
+            </button>
+
+            <!-- Botones Rápidos de Cartas -->
+            <div class="quick-buttons">
+                <button class="card-btn card-low" onclick="addCard('2')">2<span>+1</span></button>
+                <button class="card-btn card-low" onclick="addCard('3')">3<span>+1</span></button>
+                <button class="card-btn card-low" onclick="addCard('4')">4<span>+1</span></button>
+                <button class="card-btn card-low" onclick="addCard('5')">5<span>+1</span></button>
+                <button class="card-btn card-low" onclick="addCard('6')">6<span>+1</span></button>
+                <button class="card-btn card-neutral" onclick="addCard('7')">7<span>0</span></button>
+                <button class="card-btn card-neutral" onclick="addCard('8')">8<span>0</span></button>
+                <button class="card-btn card-neutral" onclick="addCard('9')">9<span>0</span></button>
+                <button class="card-btn card-high" onclick="addCard('10')">10<span>-1</span></button>
+                <button class="card-btn card-high" onclick="addCard('J')">J<span>-1</span></button>
+                <button class="card-btn card-high" onclick="addCard('Q')">Q<span>-1</span></button>
+                <button class="card-btn card-high" onclick="addCard('K')">K<span>-1</span></button>
+                <button class="card-btn card-high" onclick="addCard('A')">A<span>-1</span></button>
+            </div>
+        </div>
+
+        <!-- Historial -->
+        <div class="history-section">
+            <div class="section-title">📈 Estadísticas del Mazo</div>
+            <div class="history-grid">
+                <div class="history-item">
+                    <div class="history-number" id="countLow">0</div>
+                    <div class="history-label">Bajas vistas</div>
+                </div>
+                <div class="history-item">
+                    <div class="history-number" id="countNeutral">0</div>
+                    <div class="history-label">Neutras vistas</div>
+                </div>
+                <div class="history-item">
+                    <div class="history-number" id="countHigh">0</div>
+                    <div class="history-label">Altas vistas</div>
+                </div>
+                <div class="history-item">
+                    <div class="history-number" id="countAces">0</div>
+                    <div class="history-label">Ases restantes</div>
+                </div>
+            </div>
+
+            <div style="font-size: 0.8rem; color: #aaa; margin-bottom: 10px;">Cartas recientes:</div>
+            <div class="recent-cards" id="recentCards">
+                <!-- Las cartas aparecerán aquí -->
+            </div>
+        </div>
+
+        <!-- Controles -->
+        <div class="controls">
+            <button class="control-btn undo-btn" onclick="undoLast()">↩️ DESHACER</button>
+            <button class="control-btn reset-btn" onclick="resetCount()">🔄 REINICIAR</button>
+        </div>
+    </div>
+
+    <!-- Notificación -->
+    <div class="notification" id="notification"></div>
+
+    <script>
+        // Estado del juego
+        const TOTAL_DECKS = 8;
+        const CARDS_PER_DECK = 52;
+        const TOTAL_CARDS = TOTAL_DECKS * CARDS_PER_DECK;
+
+        // Valores Hi-Lo
+        const HI_LO_VALUES = {
+            '2': 1, '3': 1, '4': 1, '5': 1, '6': 1,
+            '7': 0, '8': 0, '9': 0,
+            '10': -1, 'J': -1, 'Q': -1, 'K': -1, 'A': -1
+        };
+
+        // Categorías
+        const CARD_CATEGORIES = {
+            '2': 'low', '3': 'low', '4': 'low', '5': 'low', '6': 'low',
+            '7': 'neutral', '8': 'neutral', '9': 'neutral',
+            '10': 'high', 'J': 'high', 'Q': 'high', 'K': 'high', 'A': 'high'
+        };
+
+        // Estado inicial
+        let state = {
+            runningCount: 0,
+            cardsPlayed: 0,
+            cardsRemaining: {},
+            history: [],
+            recentCards: []
+        };
+
+        // Inicializar cartas restantes (8 mazos completos)
+        function initializeCards() {
+            const suits = ['♠️', '♥️', '♦️', '♣️'];
+            const ranks = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
+
+            state.cardsRemaining = {};
+            for (let rank of ranks) {
+                state.cardsRemaining[rank] = 4 * TOTAL_DECKS; // 4 palos × 8 mazos
+            }
+        }
+
+        // Cargar estado guardado
+        function loadState() {
+            const saved = localStorage.getItem('blackjackCounterState');
+            if (saved) {
+                state = JSON.parse(saved);
+                updateDisplay();
+            } else {
+                initializeCards();
+            }
+        }
+
+        // Guardar estado
+        function saveState() {
+            localStorage.setItem('blackjackCounterState', JSON.stringify(state));
+        }
+
+        // Agregar carta
+        function addCard(card) {
+            if (state.cardsRemaining[card] <= 0) {
+                showNotification('⚠️ No quedan más ' + card + ' en el mazo');
+                return;
+            }
+
+            // Actualizar conteo
+            const value = HI_LO_VALUES[card];
+            state.runningCount += value;
+            state.cardsPlayed++;
+            state.cardsRemaining[card]--;
+
+            // Agregar al historial
+            state.history.push({
+                card: card,
+                value: value,
+                runningCount: state.runningCount,
+                timestamp: Date.now()
+            });
+
+            // Agregar a cartas recientes
+            const suits = ['♠️', '♥️', '♦️', '♣️'];
+            const suit = suits[Math.floor(Math.random() * suits.length)];
+            state.recentCards.unshift({ card, suit });
+            if (state.recentCards.length > 10) state.recentCards.pop();
+
+            saveState();
+            updateDisplay();
+
+            // Feedback visual
+            const btn = document.querySelector(`button[onclick="addCard('${card}')"]`);
+            btn.style.transform = 'scale(0.95)';
+            setTimeout(() => btn.style.transform = '', 100);
+        }
+
+        // Calcular True Count
+        function getTrueCount() {
+            const cardsRemaining = TOTAL_CARDS - state.cardsPlayed;
+            const decksRemaining = cardsRemaining / CARDS_PER_DECK;
+            return decksRemaining > 0 ? (state.runningCount / decksRemaining).toFixed(1) : 0;
+        }
+
+        // Calcular probabilidades
+        function calculateProbabilities() {
+            const cardsRemaining = TOTAL_CARDS - state.cardsPlayed;
+            if (cardsRemaining === 0) return { high: 0, low: 0, neutral: 0 };
+
+            let highCards = 0, lowCards = 0, neutralCards = 0;
+
+            for (let card in state.cardsRemaining) {
+                const count = state.cardsRemaining[card];
+                if (CARD_CATEGORIES[card] === 'high') highCards += count;
+                else if (CARD_CATEGORIES[card] === 'low') lowCards += count;
+                else neutralCards += count;
+            }
+
+            return {
+                high: ((highCards / cardsRemaining) * 100).toFixed(1),
+                low: ((lowCards / cardsRemaining) * 100).toFixed(1),
+                neutral: ((neutralCards / cardsRemaining) * 100).toFixed(1)
+            };
+        }
+
+        // Actualizar display
+        function updateDisplay() {
+            // Conteos principales
+            document.getElementById('runningCount').textContent = 
+                (state.runningCount > 0 ? '+' : '') + state.runningCount;
+
+            const trueCount = parseFloat(getTrueCount());
+            const trueCountEl = document.getElementById('trueCount');
+            trueCountEl.textContent = (trueCount > 0 ? '+' : '') + trueCount.toFixed(1);
+            trueCountEl.className = 'count-value true-count ' + (trueCount > 0 ? 'positive' : '');
+
+            // Mazos restantes
+            const cardsRemaining = TOTAL_CARDS - state.cardsPlayed;
+            const decksRemaining = (cardsRemaining / CARDS_PER_DECK).toFixed(1);
+            document.getElementById('decksRemaining').textContent = decksRemaining;
+            document.getElementById('cardsPlayed').textContent = 
+                state.cardsPlayed + '/' + TOTAL_CARDS;
+
+            // Efecto visual para mesa caliente
+            const mainDisplay = document.getElementById('mainDisplay');
+            if (trueCount >= 2) {
+                mainDisplay.classList.add('hot-table');
+            } else {
+                mainDisplay.classList.remove('hot-table');
+            }
+
+            // Probabilidades
+            const probs = calculateProbabilities();
+            document.getElementById('probHigh').style.width = probs.high + '%';
+            document.getElementById('probHigh').textContent = probs.high + '%';
+            document.getElementById('probLow').style.width = probs.low + '%';
+            document.getElementById('probLow').textContent = probs.low + '%';
+            document.getElementById('probNeutral').style.width = probs.neutral + '%';
+            document.getElementById('probNeutral').textContent = probs.neutral + '%';
+
+            // Sugerencia de apuesta
+            const suggestionEl = document.getElementById('suggestion');
+            if (trueCount >= 2) {
+                suggestionEl.textContent = '🔥 AUMENTAR APUESTA - Ventaja jugador';
+                suggestionEl.className = 'suggestion bet-high';
+            } else if (trueCount <= -1) {
+                suggestionEl.textContent = '❄️ APUESTA MÍNIMA - Ventaja casa';
+                suggestionEl.className = 'suggestion bet-low';
+            } else {
+                suggestionEl.textContent = '➖ ESPERAR - Sin ventaja clara';
+                suggestionEl.className = 'suggestion wait';
+            }
+
+            // Medidor de ventaja (0-100%, 50% es neutral)
+            const advantagePercent = Math.min(Math.max(50 + (trueCount * 10), 0), 100);
+            document.getElementById('advantageMarker').style.left = advantagePercent + '%';
+
+            // Estadísticas
+            let lowSeen = 0, neutralSeen = 0, highSeen = 0;
+            const originalCards = {};
+            for (let card in state.cardsRemaining) {
+                originalCards[card] = 4 * TOTAL_DECKS;
+                const seen = originalCards[card] - state.cardsRemaining[card];
+                if (CARD_CATEGORIES[card] === 'low') lowSeen += seen;
+                else if (CARD_CATEGORIES[card] === 'neutral') neutralSeen += seen;
+                else highSeen += seen;
+            }
+
+            document.getElementById('countLow').textContent = lowSeen;
+            document.getElementById('countNeutral').textContent = neutralSeen;
+            document.getElementById('countHigh').textContent = highSeen;
+            document.getElementById('countAces').textContent = state.cardsRemaining['A'];
+
+            // Cartas recientes
+            const recentContainer = document.getElementById('recentCards');
+            recentContainer.innerHTML = '';
+            state.recentCards.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'recent-card ' + (item.suit === '♥️' || item.suit === '♦️' ? 'red' : 'black');
+                div.innerHTML = item.suit + item.card + '<span>' + HI_LO_VALUES[item.card] + '</span>';
+                recentContainer.appendChild(div);
+            });
+        }
+
+        // Deshacer última carta
+        function undoLast() {
+            if (state.history.length === 0) {
+                showNotification('No hay cartas para deshacer');
+                return;
+            }
+
+            const last = state.history.pop();
+            state.runningCount -= last.value;
+            state.cardsPlayed--;
+            state.cardsRemaining[last.card]++;
+            state.recentCards.shift();
+
+            saveState();
+            updateDisplay();
+            showNotification('↩️ Última carta eliminada');
+        }
+
+        // Reiniciar conteo
+        function resetCount() {
+            if (!confirm('¿Reiniciar el conteo? Se perderán todos los datos.')) return;
+
+            state = {
+                runningCount: 0,
+                cardsPlayed: 0,
+                cardsRemaining: {},
+                history: [],
+                recentCards: []
+            };
+            initializeCards();
+            saveState();
+            updateDisplay();
+            showNotification('🔄 Conteo reiniciado');
+        }
+
+        // Mostrar notificación
+        function showNotification(message) {
+            const notif = document.getElementById('notification');
+            notif.textContent = message;
+            notif.classList.add('show');
+            setTimeout(() => notif.classList.remove('show'), 2000);
+        }
+
+        // Cámara (Funcionalidad básica)
+        let cameraActive = false;
+        let stream = null;
+
+        async function toggleCamera() {
+            const container = document.getElementById('cameraContainer');
+            const btn = document.getElementById('cameraBtn');
+            const video = document.getElementById('video');
+
+            if (!cameraActive) {
+                try {
+                    stream = await navigator.mediaDevices.getUserMedia({ 
+                        video: { facingMode: 'environment' },
+                        audio: false 
+                    });
+                    video.srcObject = stream;
+                    container.style.display = 'block';
+                    btn.textContent = '📷 Desactivar Cámara';
+                    cameraActive = true;
+                } catch (err) {
+                    showNotification('⚠️ Error al acceder a la cámara');
+                    console.error(err);
+                }
+            } else {
+                if (stream) {
+                    stream.getTracks().forEach(track => track.stop());
+                }
+                container.style.display = 'none';
+                btn.textContent = '📷 Activar Cámara (Opcional)';
+                cameraActive = false;
+            }
+        }
+
+        // Inicializar al cargar
+        window.onload = function() {
+            initializeCards();
+            loadState();
+        };
+    </script>
+</body>
+</html>
